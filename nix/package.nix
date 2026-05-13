@@ -1,44 +1,54 @@
 {
   lib,
   stdenv,
-  buildNpmPackage,
   nodejs_22,
+  pnpm_10,
+  pnpmConfigHook,
+  fetchPnpmDeps,
   python3,
   makeWrapper,
-  # node-pty needs libuv headers on Linux
+  # node-pty needs libuv headers on Linux for its native build
   libuv,
   # Exposed so downstream flakes that follow a different nixpkgs revision
-  # (where `fetchNpmDeps` may produce a different hash for the same lockfile)
-  # can override via `.override { npmDepsHash = "sha256-..."; }` without
-  # `overrideAttrs` gymnastics — `npmDepsHash` is destructured from
-  # `buildNpmPackage`'s args, so `overrideAttrs` cannot reach it.
-  #
-  # The default is read from a sidecar file so the CI auto-updater can replace
-  # the hash with a single file write instead of a sed against this source.
-  npmDepsHash ? lib.fileContents ./npm-deps.hash,
+  # can override via `.override { pnpmDepsHash = "sha256-..."; }`. The
+  # default is read from a sidecar file so CI can replace the hash with a
+  # single file write instead of a sed against this source.
+  pnpmDepsHash ? lib.fileContents ./pnpm-deps.hash,
 }:
 
-buildNpmPackage rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "paseo";
   version = (builtins.fromJSON (builtins.readFile ../package.json)).version;
 
+  # Build context for the daemon: the four daemon workspaces in full
+  # (highlight, relay, server, cli), plus the workspace metadata pnpm needs
+  # to resolve `workspace:*` deps and run `pnpm install --offline`.
+  # Non-daemon workspaces (app, desktop, website, expo-two-way-audio)
+  # contribute only their package.json — pnpm reads them to populate the
+  # workspace graph; we don't need their source, assets, or native build
+  # artifacts in the daemon's src store path.
   src = lib.cleanSourceWith {
     src = ./..;
-    filter = path: type:
+    filter =
+      path: type:
       let
         baseName = builtins.baseNameOf path;
         relPath = lib.removePrefix (toString ./..) path;
+        nonDaemonWorkspaces = [
+          "app"
+          "desktop"
+          "website"
+          "expo-two-way-audio"
+        ];
+        isUnderNonDaemonWorkspace = lib.any (
+          ws: lib.hasPrefix "/packages/${ws}/" relPath
+        ) nonDaemonWorkspaces;
+        isWorkspacePackageJson =
+          builtins.match "^/packages/[^/]+/package\\.json$" relPath != null;
       in
-      # Exclude non-daemon workspace contents (keep package.json for workspace resolution)
-      !(lib.hasPrefix "/packages/app/src" relPath)
-      && !(lib.hasPrefix "/packages/app/assets" relPath)
-      && !(lib.hasPrefix "/packages/app/android" relPath)
-      && !(lib.hasPrefix "/packages/app/ios" relPath)
-      && !(lib.hasPrefix "/packages/website/src" relPath)
-      && !(lib.hasPrefix "/packages/website/public" relPath)
-      && !(lib.hasPrefix "/packages/desktop/src" relPath)
-      && !(lib.hasPrefix "/packages/desktop/src-tauri" relPath)
-      # Exclude test fixtures and debug files
+      # Non-daemon workspaces contribute only package.json.
+      (!isUnderNonDaemonWorkspace || isWorkspacePackageJson)
+      # Universal noise.
       && !(lib.hasSuffix ".test.ts" baseName)
       && !(lib.hasSuffix ".e2e.test.ts" baseName)
       && baseName != "node_modules"
@@ -47,18 +57,10 @@ buildNpmPackage rec {
       && baseName != ".DS_Store";
   };
 
-  nodejs = nodejs_22;
-
-  # Default hash lives in nix/npm-deps.hash (see arg default above).
-  # CI auto-updates that file when package-lock.json changes (see .github/workflows/).
-  inherit npmDepsHash;
-
-  # Prevent onnxruntime-node's install script from running during automatic
-  # npm rebuild (it tries to download from api.nuget.org, which fails in the sandbox).
-  # We manually rebuild only node-pty in buildPhase.
-  npmRebuildFlags = [ "--ignore-scripts" ];
-
   nativeBuildInputs = [
+    nodejs_22
+    pnpm_10
+    pnpmConfigHook
     python3 # for node-gyp (node-pty compilation)
     makeWrapper
   ];
@@ -67,20 +69,29 @@ buildNpmPackage rec {
     libuv
   ];
 
-  # Don't use the default npm build hook — we need a custom build sequence
-  dontNpmBuild = true;
+  pnpmDeps = fetchPnpmDeps {
+    inherit (finalAttrs) pname version src;
+    fetcherVersion = 2;
+    hash = pnpmDepsHash;
+  };
 
   buildPhase = ''
     runHook preBuild
 
-    # Rebuild only node-pty (native addon for terminal emulation).
+    # Compile native addons that the daemon needs at runtime. The pnpm
+    # configHook installed with --ignore-scripts, so node-pty arrives
+    # uncompiled — rebuild it here against the nixpkgs nodejs ABI.
     # Speech-related native modules (sherpa-onnx, onnxruntime-node) are
-    # intentionally left unbuilt — they're lazily loaded and gracefully
-    # degrade when unavailable.
-    npm rebuild node-pty
+    # intentionally left unbuilt: they're lazily loaded and degrade
+    # gracefully when unavailable, and their postinstalls fetch
+    # binaries from external services (nuget, GitHub) that we can't
+    # reach from the build sandbox.
+    pnpm rebuild node-pty
 
-    # Build all daemon packages in dependency order (defined in package.json)
-    npm run build:daemon
+    # Build daemon workspaces in topological order. This is a no-op for
+    # workspaces with no `build` script (expo-two-way-audio, app, etc.)
+    # because we only filter the four daemon ones.
+    pnpm run build:daemon
 
     runHook postBuild
   '';
@@ -88,56 +99,37 @@ buildNpmPackage rec {
   installPhase = ''
     runHook preInstall
 
-    mkdir -p $out/lib/paseo
+    # pnpm deploy walks the workspace graph and materializes a filter
+    # target into a self-contained directory: only that workspace's
+    # transitive prod closure, with workspace deps copied in (not
+    # symlinked). Deploying `@getpaseo/cli` pulls in @getpaseo/server,
+    # @getpaseo/highlight, and @getpaseo/relay transitively — one tree
+    # serves both the `paseo` CLI and `paseo-server` daemon entry.
+    pnpm --filter=@getpaseo/cli deploy --prod --ignore-scripts $out/lib/paseo
 
-    # Copy root package metadata
-    cp package.json $out/lib/paseo/
+    # CLI shebang script (`#!/usr/bin/env node ...`) lives outside dist
+    install -Dm755 packages/cli/bin/paseo $out/lib/paseo/bin/paseo
 
-    # Copy node_modules (preserving workspace symlinks)
-    cp -a node_modules $out/lib/paseo/
-
-    # Auto-detect which @getpaseo/* packages were built by build:daemon
-    # (they'll have a dist/ directory). Copy those and remove the rest.
-    for link in $out/lib/paseo/node_modules/@getpaseo/*; do
-      name=$(basename "$link")
-      if [ -d "packages/$name/dist" ]; then
-        mkdir -p "$out/lib/paseo/packages/$name"
-        cp "packages/$name/package.json" "$out/lib/paseo/packages/$name/"
-        cp -a "packages/$name/dist" "$out/lib/paseo/packages/$name/"
-        if [ -d "packages/$name/node_modules" ]; then
-          cp -a "packages/$name/node_modules" "$out/lib/paseo/packages/$name/"
-        fi
-      else
-        rm -f "$link"
-      fi
-    done
-
-    # Copy CLI bin entry
-    mkdir -p $out/lib/paseo/packages/cli/bin
-    cp packages/cli/bin/paseo $out/lib/paseo/packages/cli/bin/
-
-    # Copy extra server files referenced at runtime
+    # Runtime config files the server expects at $0/../<file>
     for f in agent-prompt.md .env.example; do
       if [ -f packages/server/$f ]; then
-        cp packages/server/$f $out/lib/paseo/packages/server/
+        install -Dm644 packages/server/$f \
+          $out/lib/paseo/node_modules/@getpaseo/server/$f
       fi
     done
 
-    # Copy server scripts (including supervisor-entrypoint) needed by CLI
-    if [ -d packages/server/dist/scripts ]; then
-      mkdir -p $out/lib/paseo/packages/server/dist/scripts
-      cp -a packages/server/dist/scripts/* $out/lib/paseo/packages/server/dist/scripts/
-    fi
-
-    # Create wrapper for the server entry point (for systemd / direct use)
     mkdir -p $out/bin
-    makeWrapper ${nodejs}/bin/node $out/bin/paseo-server \
-      --add-flags "$out/lib/paseo/packages/server/dist/scripts/supervisor-entrypoint.js" \
+
+    # systemd-facing entry point. server's supervisor-entrypoint forks
+    # the daemon-worker process and manages restarts.
+    makeWrapper ${nodejs_22}/bin/node $out/bin/paseo-server \
+      --add-flags "$out/lib/paseo/node_modules/@getpaseo/server/dist/scripts/supervisor-entrypoint.js" \
       --set NODE_ENV production
 
-    # Create wrapper for the CLI
-    makeWrapper ${nodejs}/bin/node $out/bin/paseo \
-      --add-flags "$out/lib/paseo/packages/cli/dist/index.js" \
+    # Interactive CLI entry point. NODE_PATH points at the deploy's
+    # node_modules so workspace-local resolution works.
+    makeWrapper ${nodejs_22}/bin/node $out/bin/paseo \
+      --add-flags "$out/lib/paseo/dist/index.js" \
       --set NODE_PATH "$out/lib/paseo/node_modules"
 
     runHook postInstall
@@ -150,4 +142,4 @@ buildNpmPackage rec {
     mainProgram = "paseo";
     platforms = lib.platforms.linux ++ lib.platforms.darwin;
   };
-}
+})

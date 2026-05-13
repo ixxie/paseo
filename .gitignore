@@ -7,6 +7,10 @@ dist/
 .next/
 out/
 
+# Nix build symlink
+result
+result-*
+
 # Environment variables
 .env
 .env.test
