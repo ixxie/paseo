@@ -256,7 +256,7 @@ export const allProviders: AgentProvider[] = [
 ### 6. Run typecheck
 
 ```bash
-npm run typecheck
+pnpm run typecheck
 ```
 
 This is required after every change per project rules.

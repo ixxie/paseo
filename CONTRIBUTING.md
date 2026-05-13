@@ -38,11 +38,11 @@ Fill in the bug report form. The fields are there because asking back for the su
 ## Development setup
 
 ```bash
-npm run dev               # daemon + expo
-npm run dev:server
-npm run dev:app
-npm run dev:desktop
-npm run dev:website
+pnpm run dev               # daemon + expo
+pnpm run dev:server
+pnpm run dev:app
+pnpm run dev:desktop
+pnpm run dev:website
 ```
 
 [docs/development.md](docs/development.md) covers build sync, local state, and ports. Coding rules live in [docs/coding-standards.md](docs/coding-standards.md).
@@ -52,7 +52,7 @@ npm run dev:website
 - One focused change per PR. Split unrelated cleanups out.
 - Reference the issue you're fixing, unless it's a small objective bug.
 - UI changes need screenshots or video on every affected platform (mobile, web, desktop). Things that look fine on one surface regularly break on another.
-- `npm run typecheck` and `npm run lint` must pass.
+- `pnpm run typecheck` and `pnpm run lint` must pass.
 - Don't make breaking WebSocket or protocol changes. Old apps and old daemons coexist in the wild.
 - The PR template applies whether you used the web UI or `gh pr create`. Don't strip it out.
 

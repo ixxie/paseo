@@ -18,9 +18,9 @@ EAS profiles: `development`, `production`, and `production-apk` in `packages/app
 From repo root:
 
 ```bash
-npm run android:development    # Debug build
-npm run android:production     # Release build
-npm run android:clear          # Remove generated Android project
+pnpm run android:development    # Debug build
+pnpm run android:production     # Release build
+pnpm run android:clear          # Remove generated Android project
 ```
 
 Or from `packages/app`:

@@ -13,20 +13,20 @@ Paseo is a mobile + CLI app for monitoring and controlling local AI coding agent
 ### Root (monorepo)
 
 ```bash
-npm run dev                          # Start daemon + Expo in Tmux
-npm run build:daemon                 # Build: highlight + relay + server + cli
-npm run typecheck                    # Typecheck all packages
-npm run test                         # Test all packages
-npm run format                       # Format with Biome (in-place)
+pnpm run dev                          # Start daemon + Expo in Tmux
+pnpm run build:daemon                 # Build: highlight + relay + server + cli
+pnpm run typecheck                    # Typecheck all packages
+pnpm run test                         # Test all packages
+pnpm run format                       # Format with Biome (in-place)
 ```
 
 ### Server package (`packages/server`)
 
 ```bash
-npm run dev                          # Start dev daemon (tsx watch)
-npm run build                        # Build lib + scripts to dist/
-npm run start                        # Run production daemon from dist/
-npm run typecheck                    # Typecheck server source
+pnpm run dev                          # Start dev daemon (tsx watch)
+pnpm run build                        # Build lib + scripts to dist/
+pnpm run start                        # Run production daemon from dist/
+pnpm run typecheck                    # Typecheck server source
 
 # Run a SINGLE test file
 npx vitest run src/server/agent/agent-manager.test.ts --reporter=verbose
@@ -35,25 +35,25 @@ npx vitest run src/server/agent/agent-manager.test.ts --reporter=verbose
 npx vitest run -t "returns timeout error when provider times out"
 
 # Test categories
-npm run test:unit                    # Unit tests only (excludes e2e)
-npm run test:integration             # Integration tests
-npm run test:integration:all         # All integration tests
-npm run test:integration:real       # Real API integration tests
-npm run test:integration:local       # Local integration tests
-npm run test:e2e                     # End-to-end tests (excludes real/local)
-npm run test:e2e:all                # All e2e tests
-npm run test:watch                  # Watch mode
-npm run test:ui                     # Vitest UI at localhost:51204
+pnpm run test:unit                    # Unit tests only (excludes e2e)
+pnpm run test:integration             # Integration tests
+pnpm run test:integration:all         # All integration tests
+pnpm run test:integration:real       # Real API integration tests
+pnpm run test:integration:local       # Local integration tests
+pnpm run test:e2e                     # End-to-end tests (excludes real/local)
+pnpm run test:e2e:all                # All e2e tests
+pnpm run test:watch                  # Watch mode
+pnpm run test:ui                     # Vitest UI at localhost:51204
 ```
 
 ### Other useful commands
 
 ```bash
-npm run build --workspace=@getpaseo/relay    # Rebuild relay before daemon
-npm run build --workspace=@getpaseo/server   # Rebuild server
-npm run db:query -- "SELECT ..."             # Run arbitrary SQL
-npm run cli -- ls -a -g                      # List agents
-npm run cli -- daemon status                 # Check daemon status
+pnpm --filter=@getpaseo/relay build    # Rebuild relay before daemon
+pnpm --filter=@getpaseo/server build   # Rebuild server
+pnpm run db:query -- "SELECT ..."             # Run arbitrary SQL
+pnpm run cli -- ls -a -g                      # List agents
+pnpm run cli -- daemon status                 # Check daemon status
 ```
 
 ---
@@ -148,7 +148,7 @@ Tests prove behavior, not structure. Every test should answer: "what user-visibl
 
 1. **NEVER restart the daemon on port 6767** — it kills your own process
 2. **NEVER assume timeouts need a restart** — they can be transient
-3. **Always run `npm run typecheck` after changes**
+3. **Always run `pnpm run typecheck` after changes**
 4. **NEVER add auth checks to tests** — agent providers handle their own auth
 5. **NEVER make breaking WebSocket/message schema changes** — always backward-compatible
 
@@ -180,9 +180,9 @@ Daemon logs: `$PASEO_HOME/daemon.log`
 
 ```bash
 tail -f $PASEO_HOME/daemon.log      # Daemon logs
-npm run test:ui                     # Vitest browser UI at localhost:51204
-npm run cli -- inspect <agent-id>   # Detailed agent info
-npm run db:query -- "SELECT * FROM agent_timeline_rows..."
+pnpm run test:ui                     # Vitest browser UI at localhost:51204
+pnpm run cli -- inspect <agent-id>   # Detailed agent info
+pnpm run db:query -- "SELECT * FROM agent_timeline_rows..."
 ```
 
 ---

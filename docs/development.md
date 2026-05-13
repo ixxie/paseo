@@ -8,7 +8,7 @@
 ## Running the dev server
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 `scripts/dev.sh` runs the daemon and Expo together via `concurrently`, fronted by [`portless`](https://www.npmjs.com/package/portless) so each service is reachable at a stable name like `https://daemon.localhost` / `https://app.localhost` instead of a fixed port. The underlying TCP ports are ephemeral — never hardcode them. (Windows uses `scripts/dev.ps1`, which still binds the daemon to `localhost:6767` directly.)
@@ -17,23 +17,23 @@ npm run dev
 
 `PASEO_HOME` is the directory that holds runtime state (agents, sockets, daemon log). Resolution rules:
 
-- The **server itself** (e.g. when launched by the desktop app or `npm run start`) defaults to `~/.paseo` (see `packages/server/src/server/paseo-home.ts`).
-- **`npm run dev` from a git worktree** derives a stable home like `~/.paseo-<worktree-name>` and, on first run, seeds it from `~/.paseo` by copying agent/project JSON metadata and `config.json`. Checkout/worktree directories are not copied.
-- **`npm run dev` from the main checkout** (not a worktree) uses a fresh `mktemp` directory under `$TMPDIR` and removes it on exit. Set `PASEO_HOME` explicitly to keep state across runs.
+- The **server itself** (e.g. when launched by the desktop app or `pnpm run start`) defaults to `~/.paseo` (see `packages/server/src/server/paseo-home.ts`).
+- **`pnpm run dev` from a git worktree** derives a stable home like `~/.paseo-<worktree-name>` and, on first run, seeds it from `~/.paseo` by copying agent/project JSON metadata and `config.json`. Checkout/worktree directories are not copied.
+- **`pnpm run dev` from the main checkout** (not a worktree) uses a fresh `mktemp` directory under `$TMPDIR` and removes it on exit. Set `PASEO_HOME` explicitly to keep state across runs.
 
 Override knobs:
 
 ```bash
-PASEO_HOME=~/.paseo-blue npm run dev          # explicit home
-PASEO_DEV_SEED_HOME=/path/to/home npm run dev # seed from a different source home
-PASEO_DEV_RESET_HOME=1 npm run dev            # clear and reseed the derived worktree home
+PASEO_HOME=~/.paseo-blue pnpm run dev          # explicit home
+PASEO_DEV_SEED_HOME=/path/to/home pnpm run dev # seed from a different source home
+PASEO_DEV_RESET_HOME=1 pnpm run dev            # clear and reseed the derived worktree home
 ```
 
 ### Daemon endpoints
 
 - Stable daemon launched by the desktop app: `localhost:6767`.
-- `npm run dev` (macOS/Linux): portless URLs only — read them from the `dev.sh` banner or `portless get daemon` / `portless get app`.
-- `npm run dev` (Windows): `localhost:6767` for the daemon.
+- `pnpm run dev` (macOS/Linux): portless URLs only — read them from the `dev.sh` banner or `portless get daemon` / `portless get app`.
+- `pnpm run dev` (Windows): `localhost:6767` for the daemon.
 
 In any worktree-style or portless setup, never assume default ports.
 
@@ -62,8 +62,8 @@ of commands. Both run sequentially.
 ```json
 {
   "worktree": {
-    "setup": "npm ci\ncp \"$PASEO_SOURCE_CHECKOUT_PATH/.env\" .env\nnpm run db:migrate",
-    "teardown": "npm run db:drop || true"
+    "setup": "pnpm install --frozen-lockfile\ncp \"$PASEO_SOURCE_CHECKOUT_PATH/.env\" .env\npnpm run db:migrate",
+    "teardown": "pnpm run db:drop || true"
   }
 }
 ```
@@ -87,7 +87,7 @@ Every `scripts` entry with `"type": "service"` receives these environment variab
   "scripts": {
     "web": {
       "type": "service",
-      "command": "PORT=$PASEO_PORT npm run dev:web"
+      "command": "PORT=$PASEO_PORT pnpm run dev:web"
     }
   }
 }
@@ -100,33 +100,33 @@ The daemon and CLI consume sibling workspaces from compiled `dist/` output, not 
 The fastest way to keep this consistent is to rebuild the whole daemon stack with one command:
 
 ```bash
-npm run build:daemon
+pnpm run build:daemon
 ```
 
 This rebuilds, in order, `@getpaseo/highlight` → `@getpaseo/relay` → `@getpaseo/server` → `@getpaseo/cli`. Use it whenever you have changed any of those four and need clean cross-package types or runtime behavior.
 
 For tighter loops, you can rebuild a single workspace:
 
-- Changed `packages/relay/src/*`: `npm run build --workspace=@getpaseo/relay` (server imports `@getpaseo/relay` from `dist/*`).
-- Changed `packages/server/src/client/*` (especially `daemon-client.ts`) or shared WS protocol types: `npm run build --workspace=@getpaseo/server` (CLI imports `@getpaseo/server` via package exports resolving to `dist/*`).
-- Changed `packages/highlight/src/*`: `npm run build --workspace=@getpaseo/highlight` (server depends on it).
+- Changed `packages/relay/src/*`: `pnpm --filter=@getpaseo/relay build` (server imports `@getpaseo/relay` from `dist/*`).
+- Changed `packages/server/src/client/*` (especially `daemon-client.ts`) or shared WS protocol types: `pnpm --filter=@getpaseo/server build` (CLI imports `@getpaseo/server` via package exports resolving to `dist/*`).
+- Changed `packages/highlight/src/*`: `pnpm --filter=@getpaseo/highlight build` (server depends on it).
 
 ## CLI reference
 
-Use `npm run cli` to run the in-repo CLI from source (`npx tsx packages/cli/src/index.ts`). The globally installed `paseo` binary on macOS is a symlink into the installed Paseo desktop app, not this checkout — use it to drive the desktop's built-in daemon, but use `npm run cli` when you want to talk to the CLI you are editing.
+Use `pnpm cli` to run the in-repo CLI from source (`npx tsx packages/cli/src/index.ts`). The globally installed `paseo` binary on macOS is a symlink into the installed Paseo desktop app, not this checkout — use it to drive the desktop's built-in daemon, but use `pnpm cli` when you want to talk to the CLI you are editing.
 
 ```bash
-npm run cli -- ls -a -g              # List all agents globally
-npm run cli -- ls -a -g --json       # Same, as JSON
-npm run cli -- inspect <id>          # Show detailed agent info
-npm run cli -- logs <id>             # View agent timeline
-npm run cli -- daemon status         # Check daemon status
+pnpm run cli -- ls -a -g              # List all agents globally
+pnpm run cli -- ls -a -g --json       # Same, as JSON
+pnpm run cli -- inspect <id>          # Show detailed agent info
+pnpm run cli -- logs <id>             # View agent timeline
+pnpm run cli -- daemon status         # Check daemon status
 ```
 
 Use `--host <host:port>` to point the CLI at a different daemon:
 
 ```bash
-npm run cli -- --host localhost:7777 ls -a
+pnpm run cli -- --host localhost:7777 ls -a
 ```
 
 ## Agent state
@@ -167,7 +167,7 @@ Get the session ID from the agent JSON (`persistence.sessionId`), then:
 
 ## Testing with Playwright MCP
 
-Point Playwright MCP at the running Expo web target. Under `npm run dev` (macOS/Linux) that is the portless URL printed in the dev banner — typically `https://app.localhost`. If you start Expo directly with `expo start --web` (no portless), Metro defaults to `http://localhost:8081`.
+Point Playwright MCP at the running Expo web target. Under `pnpm run dev` (macOS/Linux) that is the portless URL printed in the dev banner — typically `https://app.localhost`. If you start Expo directly with `expo start --web` (no portless), Metro defaults to `http://localhost:8081`.
 
 Do NOT use browser history (back/forward). Always navigate by clicking UI elements or using `browser_navigate` with the full URL — the app uses client-side routing and browser history breaks state.
 
@@ -184,5 +184,5 @@ Diagnoses version mismatches and native module issues.
 Always run typecheck after changes:
 
 ```bash
-npm run typecheck
+pnpm run typecheck
 ```

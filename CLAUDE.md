@@ -6,7 +6,7 @@ Paseo is a mobile app for monitoring and controlling your local AI coding agents
 
 ## Repository map
 
-This is an npm workspace monorepo:
+This is a pnpm workspace monorepo:
 
 - `packages/server` — Daemon: agent lifecycle, WebSocket API, MCP server
 - `packages/app` — Mobile + web client (Expo)
@@ -46,13 +46,13 @@ At the start of non-trivial work, list `docs/` and skim anything relevant to the
 ## Quick start
 
 ```bash
-npm run dev                          # Start daemon + Expo in Tmux
-npm run cli -- ls -a -g              # List all agents
-npm run cli -- daemon status         # Check daemon status
-npm run typecheck                    # Always run after changes
-npm run lint                         # Always run after changes
-npm run format                       # Auto-format with Biome
-npm run format:check                 # Check formatting without writing
+pnpm run dev                         # Start daemon + Expo in Tmux
+pnpm run cli -- ls -a -g             # List all agents
+pnpm run cli -- daemon status        # Check daemon status
+pnpm run typecheck                   # Always run after changes
+pnpm run lint                        # Always run after changes
+pnpm run format                      # Auto-format with Biome
+pnpm run format:check                # Check formatting without writing
 ```
 
 See [docs/development.md](docs/development.md) for full setup, build sync requirements, and debugging.
@@ -64,18 +64,18 @@ See [docs/development.md](docs/development.md) for full setup, build sync requir
 - **NEVER add auth checks to tests** — agent providers handle their own auth.
 - **NEVER run the full test suite locally.** The test suites are heavy and will freeze the machine, especially if multiple agents run them in parallel. Rules:
   - Run only the specific test file you changed: `npx vitest run <file> --bail=1`
-  - Never run `npm run test` for an entire workspace unless explicitly asked.
+  - Never run `pnpm run test` for an entire workspace unless explicitly asked.
   - If you must run a broad suite, pipe output to a file and read it afterward: `npx vitest run <file> --bail=1 > /tmp/test-output.txt 2>&1` then read the file.
   - Never re-run a test suite that another agent already ran and reported green — trust the result.
   - For full suite verification, push to CI and check GitHub Actions instead.
 - **Always run typecheck and lint after every change.**
 - **Build workspace packages before diagnosing cross-package type errors.** This repo consumes generated declarations across workspaces. If typecheck fails in a package that depends on another workspace (especially CLI depending on server/daemon types), rebuild the owning package first so `dist` declarations are current:
-  - `npm run build:daemon` — rebuild highlight, relay, server, and CLI when daemon/server/CLI types may be stale.
+  - `pnpm run build:daemon` — rebuild highlight, relay, server, and CLI when daemon/server/CLI types may be stale.
   - Do not patch inferred callback parameters or add local duplicate types just to silence stale declaration errors.
-- **Run `npm run format` before committing.** This repo uses Biome for formatting. Do not manually fix formatting — let the formatter handle it.
-- **Always use npm scripts for linting and formatting.** Do not run tools directly with `npx eslint`, `npx oxfmt`, `npx oxlint`, or package-local binaries. For targeted checks, pass file paths through the npm script:
-  - `npm run lint -- packages/app/src/components/message.tsx`
-  - `npm run format:files -- CLAUDE.md packages/app/src/components/message.tsx`
+- **Run `pnpm run format` before committing.** This repo uses Biome for formatting. Do not manually fix formatting — let the formatter handle it.
+- **Always use pnpm scripts for linting and formatting.** Do not run tools directly with `npx eslint`, `pnpm exec oxfmt`, `pnpm exec oxlint`, or package-local binaries. For targeted checks, pass file paths through the pnpm script:
+  - `pnpm run lint -- packages/app/src/components/message.tsx`
+  - `pnpm run format:files -- CLAUDE.md packages/app/src/components/message.tsx`
 - **The protocol stays backward-compatible. Features don't have to.** Two separate contracts:
   - **Protocol contract (always):** schema changes must not break parsing in either direction. An old client must still parse messages from a new daemon; a new daemon must still parse messages from an old client.
     - New fields: `.optional()` with a sensible default or `.transform()` fallback.
