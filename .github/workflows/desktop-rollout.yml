@@ -30,24 +30,28 @@ jobs:
         with:
           sparse-checkout: |
             package.json
-            package-lock.json
+            pnpm-lock.yaml
+            pnpm-workspace.yaml
+            .npmrc
             scripts
 
       - name: Resolve release metadata
         shell: bash
         run: node scripts/emit-release-env.mjs --source-tag "$SOURCE_TAG" >> "$GITHUB_ENV"
 
+      - uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
           registry-url: "https://npm.pkg.github.com"
           scope: "@boudra"
 
       - name: Install JS dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

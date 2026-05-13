@@ -62,16 +62,18 @@ jobs:
             echo "Release creation raced with another workflow; continuing."
           fi
 
+      - uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: "pnpm"
           registry-url: "https://npm.pkg.github.com"
           scope: "@boudra"
 
       - name: Install JS dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

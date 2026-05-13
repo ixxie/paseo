@@ -97,6 +97,7 @@
     "typescript": "^5.9.3",
     "ws": "^8.20.0"
   },
+  "packageManager": "pnpm@10.33.2",
   "pnpm": {
     "overrides": {
       "lightningcss": "1.30.1",

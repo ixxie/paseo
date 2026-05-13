@@ -18,63 +18,63 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Check formatting
-        run: npx oxfmt --check .
+        run: pnpm run format:check
 
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Lint lockfile
-        run: npx --yes lockfile-lint --path package-lock.json --type npm --allowed-hosts npm --validate-https --validate-integrity
+        run: npx --yes lockfile-lint --path pnpm-lock.yaml --type npm --allowed-hosts npm --validate-https
 
       - name: Verify dependency signatures
-        run: npm audit signatures
+        run: pnpm audit signatures
 
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint
 
   typecheck:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: Build highlight dependency
-        run: npm run build --workspace=@getpaseo/highlight
-
-      - name: Build relay dependency
-        run: npm run build --workspace=@getpaseo/relay
-
-      - name: Build server dependency
-        run: npm run build --workspace=@getpaseo/server
+      - name: Build daemon dependency chain
+        run: pnpm --filter=@getpaseo/highlight --filter=@getpaseo/relay --filter=@getpaseo/server build
 
       - name: Typecheck all packages
-        run: npm run typecheck
+        run: pnpm run typecheck
 
   server-tests:
     strategy:
@@ -88,28 +88,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Fetch origin/main (worktree tests)
         run: git fetch --no-tags origin main:refs/remotes/origin/main
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install Claude Code CLI for provider tests
         run: npm install -g @anthropic-ai/claude-code
 
-      - name: Build highlight dependency
-        run: npm run build --workspace=@getpaseo/highlight
-
-      - name: Build relay dependency
-        run: npm run build --workspace=@getpaseo/relay
+      - name: Build daemon dependency chain
+        run: pnpm --filter=@getpaseo/highlight --filter=@getpaseo/relay build
 
       - name: Run server tests
-        run: npm run test --workspace=@getpaseo/server
+        run: pnpm --filter=@getpaseo/server test
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -123,78 +122,72 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: Build highlight dependency
-        run: npm run build --workspace=@getpaseo/highlight
-
-      - name: Build relay dependency
-        run: npm run build --workspace=@getpaseo/relay
-
-      - name: Build server dependency
-        run: npm run build --workspace=@getpaseo/server
+      - name: Build daemon dependency chain
+        run: pnpm --filter=@getpaseo/highlight --filter=@getpaseo/relay --filter=@getpaseo/server build
 
       - name: Run desktop tests
-        run: npm run test --workspace=@getpaseo/desktop
+        run: pnpm --filter=@getpaseo/desktop test
 
   app-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Build highlight dependency
-        run: npm run build --workspace=@getpaseo/highlight
+        run: pnpm --filter=@getpaseo/highlight build
 
       - name: Run app unit tests
-        run: npm run test --workspace=@getpaseo/app
+        run: pnpm --filter=@getpaseo/app test
 
   playwright:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+        run: pnpm exec playwright install --with-deps chromium
 
-      - name: Build highlight dependency
-        run: npm run build --workspace=@getpaseo/highlight
-
-      - name: Build relay dependency
-        run: npm run build --workspace=@getpaseo/relay
-
-      - name: Build server dependency
-        run: npm run build --workspace=@getpaseo/server
+      - name: Build daemon dependency chain
+        run: pnpm --filter=@getpaseo/highlight --filter=@getpaseo/relay --filter=@getpaseo/server build
 
       - name: Install agent CLIs for provider tests
         run: npm install -g @anthropic-ai/claude-code @openai/codex@0.105.0 opencode-ai
 
       - name: Run Playwright E2E tests
-        run: npm run test:e2e --workspace=@getpaseo/app
+        run: pnpm --filter=@getpaseo/app test:e2e
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
@@ -213,19 +206,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build relay
-        run: npm run build --workspace=@getpaseo/relay
+        run: pnpm --filter=@getpaseo/relay build
 
       - name: Run relay tests
-        run: npm run test --workspace=@getpaseo/relay
+        run: pnpm --filter=@getpaseo/relay test
 
   cli-tests:
     strategy:
@@ -237,22 +232,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install agent CLIs for provider tests
         run: npm install -g @anthropic-ai/claude-code @openai/codex@0.105.0 opencode-ai
 
       - name: Build highlight dependency
-        run: npm run build --workspace=@getpaseo/highlight
+        run: pnpm --filter=@getpaseo/highlight build
 
       - name: Run CLI tests
-        run: npm run test --workspace=@getpaseo/cli
+        run: pnpm --filter=@getpaseo/cli test
         env:
           PASEO_LOCAL_SPEECH_AUTO_DOWNLOAD: "0"
           PASEO_DICTATION_ENABLED: "0"

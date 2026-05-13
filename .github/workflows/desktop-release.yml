@@ -117,17 +117,19 @@ jobs:
         shell: bash
         run: node scripts/emit-release-env.mjs --source-tag "$SOURCE_TAG" >> "$GITHUB_ENV"
 
+      - uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
           registry-url: "https://npm.pkg.github.com"
           scope: "@boudra"
 
       - name: Install JS dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -163,7 +165,7 @@ jobs:
           build_args=(-- --publish never --mac --${{ matrix.electron_arch }})
           build_args+=("-c.publish.releaseType=$RELEASE_TYPE")
           build_args+=("-c.publish.channel=$RELEASE_CHANNEL")
-          npm run build:desktop "${build_args[@]}"
+          pnpm run build:desktop "${build_args[@]}"
 
       - name: Upload desktop artifacts to release
         if: env.SHOULD_PUBLISH == 'true' && env.IS_SMOKE_TAG != 'true'
@@ -209,17 +211,19 @@ jobs:
         shell: bash
         run: node scripts/emit-release-env.mjs --source-tag "$SOURCE_TAG" >> "$GITHUB_ENV"
 
+      - uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
           registry-url: "https://npm.pkg.github.com"
           scope: "@boudra"
 
       - name: Install JS dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -253,7 +257,7 @@ jobs:
           build_args=(-- --publish never --linux --x64)
           build_args+=("-c.publish.releaseType=$RELEASE_TYPE")
           build_args+=("-c.publish.channel=$RELEASE_CHANNEL")
-          npm run build:desktop "${build_args[@]}"
+          pnpm run build:desktop "${build_args[@]}"
 
       - name: Upload desktop artifacts to release
         if: env.SHOULD_PUBLISH == 'true' && env.IS_SMOKE_TAG != 'true'
@@ -299,17 +303,19 @@ jobs:
         shell: bash
         run: node scripts/emit-release-env.mjs --source-tag "$SOURCE_TAG" >> "$GITHUB_ENV"
 
+      - uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
           registry-url: "https://npm.pkg.github.com"
           scope: "@boudra"
 
       - name: Install JS dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -340,7 +346,7 @@ jobs:
           build_args=(-- --publish never --win --x64 --arm64)
           build_args+=("-c.publish.releaseType=$RELEASE_TYPE")
           build_args+=("-c.publish.channel=$RELEASE_CHANNEL")
-          npm run build:desktop "${build_args[@]}"
+          pnpm run build:desktop "${build_args[@]}"
 
       - name: Upload desktop artifacts to release
         if: env.SHOULD_PUBLISH == 'true' && env.IS_SMOKE_TAG != 'true'
@@ -383,7 +389,7 @@ jobs:
         with:
           sparse-checkout: |
             package.json
-            package-lock.json
+            pnpm-lock.yaml
             scripts
           ref: ${{ env.CHECKOUT_REF }}
 
@@ -391,17 +397,19 @@ jobs:
         shell: bash
         run: node scripts/emit-release-env.mjs --source-tag "$SOURCE_TAG" >> "$GITHUB_ENV"
 
+      - uses: pnpm/action-setup@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
-          cache-dependency-path: package-lock.json
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
           registry-url: "https://npm.pkg.github.com"
           scope: "@boudra"
 
       - name: Install JS dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile --ignore-scripts
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

@@ -1,62 +1,63 @@
 #!/usr/bin/env bash
-# Fix workspace-local lockfile entries and update the Nix dependency hash.
-# Requires: node, npm, nix
+# Update the Nix dependency hash from the current pnpm-lock.yaml.
+# Requires: nix
 #
 # Usage:
-#   ./scripts/update-nix.sh          # fix lockfile + update hash
-#   ./scripts/update-nix.sh --check  # verify everything is up to date (CI mode)
+#   ./scripts/update-nix.sh          # update hash if stale
+#   ./scripts/update-nix.sh --check  # verify the hash is up to date (CI mode)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-LOCK_FILE="$ROOT_DIR/package-lock.json"
-HASH_FILE="$ROOT_DIR/nix/npm-deps.hash"
+HASH_FILE="$ROOT_DIR/nix/pnpm-deps.hash"
 
 CHECK_MODE=false
 if [[ "${1:-}" == "--check" ]]; then
   CHECK_MODE=true
 fi
 
-# 1. Fix lockfile (add resolved/integrity for workspace-local entries)
-#    Workaround for https://github.com/npm/cli/issues/4460
-echo "Fixing lockfile..."
-node "$SCRIPT_DIR/fix-lockfile.mjs" "$LOCK_FILE"
+# Build the pnpmDeps FOD. On hash mismatch nix prints the actual hash,
+# which we parse out of stderr. This is the standard way to discover
+# an FOD's content hash for downstream consumers.
+echo "Computing pnpm-deps hash from current pnpm-lock.yaml..."
 
-# 2. Prefetch deps and compute hash
-echo "Prefetching npm dependencies..."
-
-# Resolve prefetch-npm-deps from the same nixpkgs pinned in flake.lock
-NIXPKGS_URL="$(node -p "
-  const l = JSON.parse(require('fs').readFileSync('$ROOT_DIR/flake.lock', 'utf8'));
-  const n = l.nodes.nixpkgs.locked;
-  'github:' + n.owner + '/' + n.repo + '/' + n.rev;
-")"
-
+# Force a hash mismatch by temporarily writing the standard fakeHash, build,
+# and read the suggested hash from stderr. Restore on exit.
 STDERR_LOG="$(mktemp)"
-trap "rm -f '$STDERR_LOG'" EXIT
+ORIG_HASH="$(tr -d '[:space:]' < "$HASH_FILE")"
+trap 'rm -f "$STDERR_LOG"; printf "%s\n" "$ORIG_HASH" > "$HASH_FILE"' EXIT
 
-if ! NEW_HASH="$(nix shell "${NIXPKGS_URL}#prefetch-npm-deps" -c prefetch-npm-deps "$LOCK_FILE" 2>"$STDERR_LOG")"; then
-  echo "ERROR: prefetch-npm-deps failed:" >&2
+printf 'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n' > "$HASH_FILE"
+
+if nix build --no-link --impure ".#packages.x86_64-linux.default.pnpmDeps" \
+    2> "$STDERR_LOG"; then
+  echo "ERROR: pnpmDeps build unexpectedly succeeded with fakeHash"
+  exit 1
+fi
+
+NEW_HASH="$(grep -oP 'got:\s+\Ksha256-[A-Za-z0-9+/=]+' "$STDERR_LOG" || true)"
+if [[ -z "$NEW_HASH" ]]; then
+  echo "ERROR: could not parse new hash from nix build output:" >&2
   tail -20 "$STDERR_LOG" >&2
   exit 1
 fi
+
 echo "Computed hash: $NEW_HASH"
 
-# 3. Read current hash from the sidecar file
-CURRENT_HASH="$(tr -d '[:space:]' < "$HASH_FILE")"
-
-if [[ "$NEW_HASH" == "$CURRENT_HASH" ]]; then
+# Compare and write
+if [[ "$NEW_HASH" == "$ORIG_HASH" ]]; then
   echo "Hash is already up to date."
+  # trap restores ORIG_HASH on exit; that's a no-op here
 else
   if $CHECK_MODE; then
-    echo "ERROR: npmDepsHash is stale."
-    echo "  current: $CURRENT_HASH"
+    echo "ERROR: pnpmDepsHash is stale."
+    echo "  current: $ORIG_HASH"
     echo "  correct: $NEW_HASH"
     echo "Run ./scripts/update-nix.sh to fix."
     exit 1
   fi
 
-  echo "Updating nix/npm-deps.hash..."
   printf '%s\n' "$NEW_HASH" > "$HASH_FILE"
-  echo "Updated: $CURRENT_HASH -> $NEW_HASH"
+  trap 'rm -f "$STDERR_LOG"' EXIT
+  echo "Updated: $ORIG_HASH -> $NEW_HASH"
 fi
