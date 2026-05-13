@@ -13,12 +13,12 @@
   # can override via `.override { pnpmDepsHash = "sha256-..."; }`. The
   # default is read from a sidecar file so CI can replace the hash with a
   # single file write instead of a sed against this source.
-  pnpmDepsHash ? lib.fileContents ./pnpm-deps.hash,
+  pnpmDepsHash ? lib.fileContents ../pnpm-deps.hash,
 }:
 
 stdenv.mkDerivation (finalAttrs: {
   pname = "paseo";
-  version = (builtins.fromJSON (builtins.readFile ../package.json)).version;
+  version = (builtins.fromJSON (builtins.readFile ../../package.json)).version;
 
   # Build context for the daemon: the four daemon workspaces in full
   # (highlight, relay, server, cli), plus the workspace metadata pnpm needs
@@ -28,12 +28,12 @@ stdenv.mkDerivation (finalAttrs: {
   # workspace graph; we don't need their source, assets, or native build
   # artifacts in the daemon's src store path.
   src = lib.cleanSourceWith {
-    src = ./..;
+    src = ../..;
     filter =
       path: type:
       let
         baseName = builtins.baseNameOf path;
-        relPath = lib.removePrefix (toString ./..) path;
+        relPath = lib.removePrefix (toString ../..) path;
         nonDaemonWorkspaces = [
           "app"
           "desktop"

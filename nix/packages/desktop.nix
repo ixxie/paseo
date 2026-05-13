@@ -19,15 +19,15 @@
 
 stdenv.mkDerivation {
   pname = "paseo-desktop";
-  version = (builtins.fromJSON (builtins.readFile ../package.json)).version;
+  version = (builtins.fromJSON (builtins.readFile ../../package.json)).version;
 
   src = lib.cleanSourceWith {
-    src = ./..;
+    src = ../..;
     filter =
       path: type:
       let
         baseName = builtins.baseNameOf path;
-        relPath = lib.removePrefix (toString ./..) path;
+        relPath = lib.removePrefix (toString ../..) path;
       in
       # Exclude mobile-only platform code (we only need the web/electron build)
       !(lib.hasPrefix "/packages/app/android" relPath)
