@@ -3,9 +3,9 @@ pre-commit:
   jobs:
     - name: format
       glob: "*.{css,js,json,jsonc,jsx,md,ts,tsx,yaml,yml}"
-      run: npm run format:check:files -- {staged_files}
+      run: pnpm run format:check:files -- {staged_files}
     - name: lint
       glob: "*.{js,jsx,ts,tsx}"
-      run: npm run lint -- {staged_files}
+      run: pnpm run lint -- {staged_files}
     - name: typecheck
-      run: npm run typecheck
+      run: pnpm run typecheck
